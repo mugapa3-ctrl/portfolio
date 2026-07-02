@@ -146,7 +146,7 @@ const SEED_HOLDINGS = [
 const KEY = "portfolio_v2";
 const DEFAULT = {
   classes:[...DEFAULT_CLASSES], targets:{}, holdings:[], history:[],
-  realized:[], trades:[], fx:1380, band:5, finnhubKey:"",
+  realized:[], trades:[], fx:1380, band:5, finnhubKey:"", ghToken:"",
   syncId:"", cloudAuto:false, lastSync:null, seeded:false
 };
 let S = load();
@@ -707,8 +707,12 @@ function viewSet(){
     <button class="btn ghost" onclick="S.finnhubKey=document.getElementById('set_key').value.trim();save();alert(S.finnhubKey?'키 저장됨':'키 삭제됨')">키 저장</button>
   </div>
   <div class="card">
-    <div class="sec-title" style="padding-top:0">☁️ 클라우드 동기화</div>
-    <p class="hint" style="margin:0 0 6px">여러 기기에서 같은 데이터를 쓸 수 있어요. PC에서 '새 코드 만들기' → 폰에서 코드 입력 후 '내려받기'. <b>마지막 저장 기기가 덮어쓰며</b>, 코드를 아는 사람은 접근 가능하니 비밀로 하세요. (JSONBlob 무료 서버, 75일 미접속 시 삭제 가능)</p>
+    <div class="sec-title" style="padding-top:0">☁️ 클라우드 동기화 (GitHub)</div>
+    <p class="hint" style="margin:0 0 6px">본인 GitHub 계정의 <b>비공개 Gist</b>에 데이터를 저장해 PC↔폰을 동기화해요. 순서: ① 아래 링크에서 토큰 생성 → 붙여넣고 저장 ② PC에서 '새 코드' ③ 폰에서 토큰+코드 입력 후 '내려받기'. <b>마지막 저장 기기가 덮어쓰니</b> 수정은 한 기기에서 하는 게 안전해요.<br>
+    <a href="https://github.com/settings/tokens/new?scopes=gist&description=portfolio-sync" target="_blank">🔗 토큰 만들기</a> — Expiration을 <b>No expiration</b>으로, <b>gist 체크만</b> 확인 후 Generate → 복사. 토큰은 이 기기에만 저장돼요.</p>
+    <input id="set_ghtoken" type="password" placeholder="GitHub 토큰 (ghp_...)" value="${esc(S.ghToken)}">
+    <button class="btn ghost" onclick="S.ghToken=document.getElementById('set_ghtoken').value.trim();save();alert(S.ghToken?'토큰 저장됨':'토큰 삭제됨')">토큰 저장</button>
+    <label style="margin-top:14px">동기화 코드 (Gist ID)</label>
     <input id="set_sync" placeholder="동기화 코드" value="${esc(S.syncId)}">
     <div class="grid3" style="margin-top:10px">
       <button class="btn ghost sm" style="width:100%" onclick="cloudCreate()">새 코드</button>
@@ -841,27 +845,39 @@ async function refresh(){
   setStatus(`${t} · 성공 ${ok}`+(failNames.length?` · 실패 ${failNames.length}(값 유지)`:''));
 }
 
-/* ================= 클라우드 동기화 (JSONBlob) ================= */
-const BLOB_BASE='https://jsonblob.com/api/jsonBlob';
+/* ================= 클라우드 동기화 (GitHub Gist) ================= */
+const GH_API='https://api.github.com';
+const GIST_FILE='portfolio.json';
 function setCloud(s){ const e=document.getElementById('cloudState'); if(e) e.textContent=s; }
-function exportState(){ const {syncId,cloudAuto,lastSync,...rest}=S; return rest; }
+function exportState(){ const {syncId,cloudAuto,lastSync,ghToken,...rest}=S; return rest; }
+function ghHeaders(json){
+  const h={'Accept':'application/vnd.github+json'};
+  if(S.ghToken) h['Authorization']='Bearer '+S.ghToken;
+  if(json) h['Content-Type']='application/json';
+  return h;
+}
 async function cloudCreate(){
+  if(!S.ghToken){ alert('먼저 GitHub 토큰을 저장하세요 (설정 → 토큰 만들기 링크)'); return; }
   try{
     setCloud('생성 중…');
-    const r=await fetch(BLOB_BASE,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(exportState())});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const id=(r.headers.get('Location')||'').split('/').pop();
-    if(!id) throw new Error('코드 없음(브라우저 제한)');
-    S.syncId=id; S.cloudAuto=true; save();
+    const r=await fetch(GH_API+'/gists',{method:'POST',headers:ghHeaders(true),
+      body:JSON.stringify({description:'내 자산 포트폴리오 동기화 데이터',public:false,
+        files:{[GIST_FILE]:{content:JSON.stringify(exportState())}}})});
+    if(!r.ok) throw new Error('HTTP '+r.status+(r.status===401?' (토큰 확인 필요)':''));
+    const j=await r.json();
+    if(!j.id) throw new Error('코드 없음');
+    S.syncId=j.id; S.cloudAuto=true; save();
     render();
-    alert('동기화 코드가 생성됐어요:\n\n'+id+'\n\n다른 기기에서 이 코드를 입력하고 내려받기를 누르세요. 코드는 비밀로!');
-  }catch(e){ setCloud('생성 실패: '+e.message); alert('클라우드 생성 실패: '+e.message); }
+    alert('동기화 코드가 생성됐어요:\n\n'+j.id+'\n\n폰에서 같은 토큰과 이 코드를 입력하고 내려받기를 누르세요.');
+  }catch(e){ setCloud('생성 실패: '+e.message); alert('생성 실패: '+e.message); }
 }
 async function cloudPush(manual){
   if(!S.syncId){ if(manual) alert('동기화 코드를 먼저 입력하세요'); return; }
+  if(!S.ghToken){ if(manual) alert('올리기에는 GitHub 토큰이 필요해요'); return; }
   try{
     setCloud('올리는 중…');
-    const r=await fetch(BLOB_BASE+'/'+S.syncId,{method:'PUT',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(exportState())});
+    const r=await fetch(GH_API+'/gists/'+S.syncId,{method:'PATCH',headers:ghHeaders(true),
+      body:JSON.stringify({files:{[GIST_FILE]:{content:JSON.stringify(exportState())}}})});
     if(!r.ok) throw new Error('HTTP '+r.status);
     setCloud('올림 완료 '+new Date().toLocaleTimeString('ko-KR'));
   }catch(e){ setCloud('올리기 실패: '+e.message); }
@@ -870,14 +886,19 @@ async function cloudPull(silent){
   if(!S.syncId){ if(!silent) alert('동기화 코드를 먼저 입력하세요'); return; }
   try{
     setCloud('내려받는 중…');
-    const r=await fetch(BLOB_BASE+'/'+S.syncId,{headers:{'Accept':'application/json'}});
+    const r=await fetch(GH_API+'/gists/'+S.syncId,{headers:ghHeaders(false)});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    const o=await r.json();
+    const j=await r.json();
+    const f=j.files&&j.files[GIST_FILE];
+    if(!f) throw new Error('데이터 파일 없음');
+    let content=f.content;
+    if(f.truncated){ const rr=await fetch(f.raw_url); content=await rr.text(); }
+    const o=JSON.parse(content);
     suppressPush=true;
-    const keepId=S.syncId,keepAuto=S.cloudAuto;
+    const keepId=S.syncId,keepAuto=S.cloudAuto,keepTok=S.ghToken;
     const s=structuredClone(DEFAULT);
     if(Array.isArray(o.classes)&&o.classes.length) s.classes=o.classes;
-    Object.assign(s,o,{syncId:keepId,cloudAuto:keepAuto,seeded:true});
+    Object.assign(s,o,{syncId:keepId,cloudAuto:keepAuto,ghToken:keepTok,seeded:true});
     S=fix(s); save();
     suppressPush=false;
     render();
