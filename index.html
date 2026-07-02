@@ -20,7 +20,7 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%}
 body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo','Noto Sans KR',sans-serif;
-  padding-bottom:calc(96px + env(safe-area-inset-bottom));font-size:14px;}
+  padding-left:calc(64px + env(safe-area-inset-left));padding-bottom:24px;font-size:14px;}
 #app{max-width:520px;margin:0 auto;padding:16px 16px 24px;}
 h1{font-size:17px;font-weight:700;padding:8px 4px 14px;display:flex;justify-content:space-between;align-items:center}
 .sub{color:var(--sub);font-size:13px}
@@ -49,15 +49,16 @@ canvas{display:block}
 .btn.danger{background:transparent;color:var(--up)}
 .btn.sm{width:auto;display:inline-block;padding:9px 14px;font-size:13px;margin:0}
 .btn:active{opacity:.85}
-.fab{position:fixed;right:calc(50% - 244px);bottom:calc(96px + env(safe-area-inset-bottom));width:52px;height:52px;border-radius:50%;
+.fab{position:fixed;right:calc(50% - 276px);bottom:calc(28px + env(safe-area-inset-bottom));width:52px;height:52px;border-radius:50%;
   background:var(--blue);color:#fff;font-size:26px;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(49,130,246,.45);z-index:5}
 @media (max-width:552px){.fab{right:20px}}
-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(22,25,32,.97);backdrop-filter:blur(10px);
-  border-top:1px solid var(--line);display:flex;z-index:10;padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;background:none;border:none;color:var(--sub);font-size:10.5px;padding:8px 0 6px;cursor:pointer}
+nav{position:fixed;top:0;bottom:0;left:0;width:calc(64px + env(safe-area-inset-left));background:rgba(22,25,32,.97);backdrop-filter:blur(10px);
+  border-right:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;gap:6px;z-index:10;
+  padding-left:env(safe-area-inset-left)}
+nav button{background:none;border:none;color:var(--sub);font-size:10.5px;padding:12px 0;cursor:pointer;width:100%}
 nav button.on{color:var(--blue)}
-nav .ico{font-size:19px;display:block;margin-bottom:2px}
-.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:20;display:none;align-items:flex-end;justify-content:center}
+nav .ico{font-size:20px;display:block;margin-bottom:3px}
+.modal-bg{position:fixed;inset:0;padding-left:calc(64px + env(safe-area-inset-left));background:rgba(0,0,0,.6);z-index:20;display:none;align-items:flex-end;justify-content:center}
 .modal-bg.show{display:flex}
 .modal{background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:22px 20px calc(24px + env(safe-area-inset-bottom));
   max-height:90vh;overflow-y:auto}
